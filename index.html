@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Lift</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#000;
+  --surface:#1a1a1c;
+  --raised:#242427;
+  --line:#333338;
+  --red:#e5352b;
+  --red-dim:#8f2620;
+  --text:#ededed;
+  --muted:#8a8a8e;
+  --dim:#5a5a5f;
+  --ok:#3ecf6a;
+  --pad:16px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+body{
+  font-family:Roboto,"Helvetica Neue",-apple-system,system-ui,sans-serif;
+  font-size:16px;line-height:1.4;
+  padding-bottom:env(safe-area-inset-bottom);
+  -webkit-font-smoothing:antialiased;
+  overscroll-behavior-y:none;
+}
+button,input{font-family:inherit;color:inherit}
+button{background:none;border:none;padding:0;cursor:pointer}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---------- app chrome ---------- */
+.screen{display:none;min-height:100vh;flex-direction:column}
+.screen.on{display:flex}
+.bar{
+  display:flex;align-items:center;gap:12px;
+  padding:calc(env(safe-area-inset-top) + 10px) var(--pad) 10px;
+  background:var(--surface);position:sticky;top:0;z-index:20;
+  border-bottom:1px solid var(--line);
+}
+.bar h1{font-size:19px;font-weight:600;margin:0;flex:1;letter-spacing:.01em}
+.bar .clock{font-size:19px;font-weight:400;color:var(--muted);letter-spacing:.02em}
+.icon{width:44px;height:44px;display:grid;place-items:center;border-radius:50%;color:var(--text);flex:none}
+.icon svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.icon.red{color:var(--red)}
+main{flex:1;padding:var(--pad);padding-bottom:120px}
+
+/* ---------- home ---------- */
+.tagline{text-align:center;color:var(--muted);font-size:14px;margin:4px 0 22px}
+.board{display:flex;gap:2px;justify-content:center;align-items:stretch}
+.col{
+  flex:1 1 0;min-width:0;background:var(--surface);
+  border-radius:10px;padding:12px 4px;text-align:center;
+  display:flex;flex-direction:column;gap:2px;
+}
+.col:active{background:var(--raised)}
+.col .pos{font-size:12px;color:var(--muted);letter-spacing:.04em}
+.col .nm{
+  font-size:14px;font-weight:600;margin:6px 0 10px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.col .deload{color:var(--red);font-weight:600}
+.boardrow{
+  display:flex;gap:2px;justify-content:center;margin-top:14px;
+  border-top:1px solid var(--red-dim);padding-top:10px;
+}
+.boardrow .cell{flex:1 1 0;min-width:0;text-align:center}
+.boardrow .cell b{font-size:26px;font-weight:400;letter-spacing:-.01em;display:block}
+.boardlabel{text-align:center;color:var(--muted);font-size:13px;margin-top:2px}
+.pending{color:var(--ok);font-size:11px;display:block;margin-top:2px}
+.latest{text-align:center;color:var(--muted);font-size:14px;margin-top:28px;line-height:1.6}
+.empty{text-align:center;color:var(--muted);margin-top:80px;padding:0 24px;line-height:1.7}
+.empty b{display:block;color:var(--text);font-size:18px;margin-bottom:8px;font-weight:600}
+
+.fab{
+  position:fixed;right:18px;bottom:calc(env(safe-area-inset-bottom) + 22px);
+  width:60px;height:60px;border-radius:50%;background:var(--red);
+  display:grid;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.6);z-index:30;
+}
+.fab svg{width:28px;height:28px;stroke:#fff;stroke-width:2.5;fill:none;stroke-linecap:round}
+
+.banner{
+  background:var(--raised);border-left:3px solid var(--red);
+  padding:12px 14px;border-radius:6px;margin-bottom:18px;font-size:14px;color:var(--muted);
+}
+.banner b{color:var(--text);font-weight:600}
+.banner button{color:var(--red);font-weight:600;margin-top:6px;font-size:14px}
+
+/* ---------- session ---------- */
+.meta{
+  background:var(--surface);border-radius:10px;padding:14px 16px;
+  margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+}
+.meta .lines{font-size:15px;line-height:1.55;color:var(--muted)}
+.meta .lines b{color:var(--text);font-weight:400}
+.meta .tm{font-size:32px;font-weight:300;letter-spacing:-.02em;color:var(--text);line-height:1}
+.meta .tmlabel{font-size:12px;color:var(--muted);text-align:right;margin-top:4px}
+
+.block{background:var(--surface);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.block.open{background:var(--raised)}
+.blockhead{
+  display:flex;align-items:center;gap:12px;width:100%;
+  padding:16px;text-align:left;font-size:17px;
+}
+.blockhead .chev{color:var(--dim);flex:none;transition:transform .18s}
+.block.open .blockhead .chev{transform:rotate(90deg)}
+.blockhead .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.blockhead .core{color:var(--red);flex:none;font-size:15px}
+.blockhead .sum{color:var(--muted);font-size:13px;flex:none}
+.block.open .blockhead{padding-bottom:4px}
+
+.tbl{padding:0 16px 4px}
+.thead{
+  display:grid;grid-template-columns:34px 30px 1fr 1fr;
+  gap:8px;align-items:center;color:var(--muted);font-size:13px;
+  padding-bottom:6px;border-bottom:1px solid var(--line);
+}
+.thead .c{text-align:center}
+.row{
+  display:grid;grid-template-columns:34px 30px 1fr 1fr;
+  gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);
+}
+.tick{
+  width:30px;height:30px;border-radius:50%;border:2px solid var(--red);
+  display:grid;place-items:center;flex:none;
+}
+.tick.on{background:var(--red)}
+.tick svg{width:16px;height:16px;stroke:#fff;stroke-width:3;fill:none;display:none}
+.tick.on svg{display:block}
+.setn{color:var(--muted);font-size:17px;text-align:center}
+.stepper{display:flex;align-items:center;justify-content:center;gap:2px}
+.stepper button{width:34px;height:42px;color:var(--muted);font-size:22px;font-weight:300;flex:none}
+.stepper button:active{color:var(--red)}
+.stepper input{
+  width:100%;min-width:0;background:none;border:none;text-align:center;
+  font-size:21px;font-weight:400;padding:4px 0;
+}
+.stepper input::-webkit-outer-spin-button,.stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.stepper input[type=number]{-moz-appearance:textfield}
+.amrap .stepper input{color:var(--red);font-weight:600}
+
+.tools{display:flex;justify-content:center;gap:6px;padding:8px 0 12px}
+.tools button{width:48px;height:44px;display:grid;place-items:center;color:var(--red);border-radius:8px}
+.tools button:active{background:rgba(229,53,43,.15)}
+.tools svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.notefield{
+  width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;
+  padding:10px 12px;font-size:15px;margin:0 0 12px;resize:vertical;min-height:44px;
+}
+.notepreview{padding:0 16px 12px;color:var(--muted);font-size:14px;font-style:italic}
+
+.addacc{
+  width:100%;padding:15px;background:var(--surface);border-radius:10px;
+  color:var(--red);font-size:16px;font-weight:500;margin-bottom:10px;
+}
+.footer{
+  background:var(--surface);border-radius:10px;padding:14px;text-align:center;margin-top:18px;
+}
+.footer .d{color:var(--muted);font-size:15px;margin-bottom:12px}
+.footer .acts{display:flex;gap:10px;justify-content:center}
+.btn{padding:14px 22px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:.02em}
+.btn.ghost{background:var(--raised);color:var(--text)}
+.btn.solid{background:var(--red);color:#fff;flex:1}
+.btn.wide{width:100%;display:block;margin-top:10px}
+.btn.danger{background:none;color:var(--red);border:1px solid var(--red-dim)}
+
+/* ---------- forms ---------- */
+.field{margin-bottom:18px}
+.field label{display:block;font-size:14px;color:var(--muted);margin-bottom:6px}
+.field .hint{font-size:13px;color:var(--dim);margin-top:5px;line-height:1.45}
+.field input,.field select{
+  width:100%;background:var(--surface);border:1px solid var(--line);
+  border-radius:8px;padding:14px;font-size:17px;
+}
+.pair{display:flex;gap:12px}
+.pair .field{flex:1}
+.sect{font-size:13px;color:var(--muted);margin:26px 0 12px;border-bottom:1px solid var(--line);padding-bottom:6px}
+
+/* ---------- modal ---------- */
+.scrim{
+  position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:50;
+  display:none;align-items:center;justify-content:center;padding:22px;
+}
+.scrim.on{display:flex}
+.sheet{
+  background:var(--raised);border-radius:12px;max-height:82vh;width:100%;max-width:460px;
+  overflow-y:auto;padding:22px;-webkit-overflow-scrolling:touch;
+}
+.sheet h2{font-size:15px;color:var(--muted);margin:0 0 16px;font-weight:400}
+.hentry{margin-bottom:20px;font-size:17px;line-height:1.5}
+.hentry .hd{color:var(--text);margin-bottom:2px}
+.hentry .hl{color:var(--text)}
+.hentry .hn{color:var(--muted);font-style:italic;font-size:15px;margin-top:2px}
+
+.popup{
+  background:var(--raised);border-radius:12px;padding:28px 24px;text-align:center;
+  max-width:340px;width:100%;border-top:3px solid var(--red);
+}
+.popup .big{font-size:44px;font-weight:300;letter-spacing:-.02em;line-height:1.1}
+.popup .cap{color:var(--muted);font-size:16px;margin-top:6px}
+.popup .sub{color:var(--muted);font-size:14px;margin:16px 0 22px;line-height:1.6}
+.popup .btn{width:100%}
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(env(safe-area-inset-bottom) + 96px);
+  background:var(--raised);color:var(--text);padding:13px 20px;border-radius:24px;
+  font-size:14px;z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;
+  border:1px solid var(--line);max-width:88vw;text-align:center;
+}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- ============ HOME ============ -->
+<section id="s-home" class="screen on">
+  <div class="bar">
+    <h1>Lift</h1>
+    <button class="icon" onclick="go('data')" aria-label="Backup and data">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+    </button>
+  </div>
+  <main>
+    <div id="nag"></div>
+    <div id="home-body"></div>
+  </main>
+  <button class="fab" onclick="newLift()" aria-label="Add a lift">
+    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+</section>
+
+<!-- ============ SESSION ============ -->
+<section id="s-session" class="screen">
+  <div class="bar">
+    <button class="icon" onclick="leaveSession()" aria-label="Back">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    </button>
+    <h1 id="sess-name">—</h1>
+    <span class="clock num" id="sess-clock">0:00:00</span>
+  </div>
+  <main id="sess-body"></main>
+</section>
+
+<!-- ============ LIFT EDITOR ============ -->
+<section id="s-lift" class="screen">
+  <div class="bar">
+    <button class="icon" onclick="go('home')" aria-label="Back">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    </button>
+    <h1 id="lift-title">Lift</h1>
+  </div>
+  <main id="lift-body"></main>
+</section>
+
+<!-- ============ DATA ============ -->
+<section id="s-data" class="screen">
+  <div class="bar">
+    <button class="icon" onclick="go('home')" aria-label="Back">
+      <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    </button>
+    <h1>Settings</h1>
+  </div>
+  <main id="data-body"></main>
+</section>
+
+<div class="scrim" id="scrim" onclick="if(event.target===this)closeModal()">
+  <div id="modal-inner"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   STORAGE
+   ============================================================ */
+const KEY = 'lift.v1';
+let storageOK = true;
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){ storageOK = false; }
+  return {lifts:[], sessions:[], inProgress:null, lastExport:null, seq:1};
+}
+function saveState(){
+  // If storage is unavailable (opened as a local file, private mode), the app
+  // still runs from memory for this session but nothing survives a reload.
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); }
+  catch(e){ storageOK = false; }
+}
+let S = loadState();
+const uid = () => 'x' + (S.seq++) + Date.now().toString(36);
+
+/* ============================================================
+   PROGRESSION MATH
+   ============================================================ */
+const down5 = x => Math.floor(x/5)*5;
+
+function basePercent(l, cycle, week){
+  return l.startPct + (cycle-1)*l.mesoInc + (week-1)*l.scalePct;
+}
+function isDeloadWeek(l, week){ return week === l.deloadWeek; }
+
+function coreSetsFor(l, cycle, week){
+  const dl = isDeloadWeek(l, week);
+  const base = basePercent(l, cycle, week);
+  const out = [];
+  for(let n=1;n<=3;n++){
+    const pct = dl ? 50 : base + (n-1)*l.scalePct;
+    out.push({
+      n, percent:+pct.toFixed(2),
+      weight: down5(l.tm * pct / 100),
+      amrap: n===3,
+      reps: 5,
+      done:false
+    });
+  }
+  return out;
+}
+const epley = (w,r) => w * (1 + r/30);
+
+/* Cap: never more than +5% in a cycle. Floor to nearest 5. No floor on the downside. */
+function resolveNewTM(l){
+  if(!l.bestEstimate || l.bestEstimate <= l.tm) return null;
+  const capped = Math.min(l.bestEstimate, l.tm * 1.05);
+  const tm = down5(capped);
+  return tm > l.tm ? tm : null;
+}
+
+function advanceLift(l){
+  if(l.week >= l.deloadWeek){
+    const nt = resolveNewTM(l);
+    if(nt) l.tm = nt;
+    l.bestEstimate = 0;
+    l.week = 1;
+    l.cycle += 1;
+  } else {
+    l.week += 1;
+  }
+}
+
+/* ============================================================
+   NAV
+   ============================================================ */
+let screen = 'home';
+function go(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById('s-'+name).classList.add('on');
+  screen = name;
+  window.scrollTo(0,0);
+  if(name==='home') renderHome();
+  if(name==='data') renderData();
+}
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('on'), 2200);
+}
+function closeModal(){ document.getElementById('scrim').classList.remove('on'); }
+function openModal(html){
+  document.getElementById('modal-inner').innerHTML = html;
+  document.getElementById('scrim').classList.add('on');
+}
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const fmtDate = iso => {
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'2-digit',year:'numeric'});
+};
+const showW = w => Number.isInteger(w) ? w : w.toFixed(1);
+
+/* ============================================================
+   HOME
+   ============================================================ */
+function bestEstimateEver(liftId){
+  let best = 0;
+  S.sessions.forEach(s=>{
+    if(s.liftId!==liftId || s.status!=='completed') return;
+    (s.coreSets||[]).forEach(cs=>{
+      if(cs.amrap && cs.reps>0) best = Math.max(best, epley(cs.weight, cs.reps));
+    });
+  });
+  return best;
+}
+
+function renderHome(){
+  renderNag();
+  const body = document.getElementById('home-body');
+
+  if(!S.lifts.length){
+    body.innerHTML = `<div class="empty">
+      <b>No lifts yet</b>
+      Add a core lift to get started. You'll set its training max and how fast the
+      percentages climb, and the app works out every weight from there.
+    </div>`;
+    return;
+  }
+
+  const cols = S.lifts.map(l=>{
+    const dl = isDeloadWeek(l, l.week);
+    return `<button class="col" onclick="openSession('${l.id}')">
+      <span class="pos num">C${l.cycle} : W${l.week}</span>
+      <span class="nm">${esc(l.name)}</span>
+      <span class="pos${dl?' deload':''}">${dl?'Deload':DAYS[l.dayOfWeek].slice(0,3)}</span>
+    </button>`;
+  }).join('');
+
+  const tmRow = S.lifts.map(l=>{
+    const pend = resolveNewTM(l);
+    return `<div class="cell"><b class="num">${l.tm}</b>${
+      pend ? `<span class="pending num">→ ${pend}</span>` : ''}</div>`;
+  }).join('');
+
+  const estRow = S.lifts.map(l=>{
+    const e = bestEstimateEver(l.id);
+    return `<div class="cell"><b class="num">${e?Math.round(e):'—'}</b></div>`;
+  }).join('');
+
+  const done = S.sessions.filter(s=>s.status==='completed');
+  const last = done[done.length-1];
+  const latest = last
+    ? `Latest workout:<br>${esc(liftName(last.liftId))} — ${fmtDate(last.date)}`
+    : 'No workouts logged yet';
+
+  body.innerHTML = `
+    <p class="tagline">Track your sets. Beat your max.</p>
+    <div class="board">${cols}</div>
+    <div class="boardrow">${tmRow}</div>
+    <div class="boardlabel">Training max &middot; lb</div>
+    <div class="boardrow">${estRow}</div>
+    <div class="boardlabel">Best estimated max &middot; lb</div>
+    <p class="latest">${latest}</p>`;
+}
+
+function renderNag(){
+  const el = document.getElementById('nag');
+  const n = S.sessions.length;
+  if(!n){ el.innerHTML=''; return; }
+  const days = S.lastExport ? (Date.now()-S.lastExport)/864e5 : Infinity;
+  if(days < 14){ el.innerHTML=''; return; }
+  el.innerHTML = `<div class="banner">
+    <b>Back up your log.</b> ${n} session${n===1?'':'s'} live only in this browser.
+    Clearing site data would erase them.
+    <br><button onclick="go('data')">Export a backup file</button>
+  </div>`;
+}
+const liftName = id => (S.lifts.find(l=>l.id===id)||{}).name || 'Deleted lift';
+
+/* ============================================================
+   LIFT EDITOR
+   ============================================================ */
+function newLift(){ editLift(null); }
+
+function editLift(id){
+  const l = id ? S.lifts.find(x=>x.id===id) : null;
+  document.getElementById('lift-title').textContent = l ? l.name : 'New lift';
+  const v = l || {name:'',dayOfWeek:1,tm:300,startPct:65,scalePct:5,deloadWeek:4,mesoInc:5,cycle:1,week:1};
+
+  document.getElementById('lift-body').innerHTML = `
+    <div class="field">
+      <label for="f-name">Name</label>
+      <input id="f-name" value="${esc(v.name)}" placeholder="Squat" autocomplete="off">
+    </div>
+    <div class="pair">
+      <div class="field">
+        <label for="f-day">Day</label>
+        <select id="f-day">${DAYS.map((d,i)=>
+          `<option value="${i}"${i===v.dayOfWeek?' selected':''}>${d}</option>`).join('')}</select>
+      </div>
+      <div class="field">
+        <label for="f-tm">Training max</label>
+        <input id="f-tm" type="number" inputmode="decimal" step="5" value="${v.tm}">
+      </div>
+    </div>
+
+    <div class="sect">Progression</div>
+    <div class="pair">
+      <div class="field">
+        <label for="f-start">Starting percent</label>
+        <input id="f-start" type="number" inputmode="decimal" value="${v.startPct}">
+      </div>
+      <div class="field">
+        <label for="f-scale">Scaling percent</label>
+        <input id="f-scale" type="number" inputmode="decimal" value="${v.scalePct}">
+      </div>
+    </div>
+    <p class="hint" style="margin:-8px 0 18px">
+      Scaling steps up each set within a session, and steps up the starting point each week.
+    </p>
+    <div class="pair">
+      <div class="field">
+        <label for="f-deload">Deload week</label>
+        <input id="f-deload" type="number" inputmode="numeric" value="${v.deloadWeek}">
+        <p class="hint">Cycle length. Runs at 50% of TM.</p>
+      </div>
+      <div class="field">
+        <label for="f-meso">Mesocycle increase</label>
+        <input id="f-meso" type="number" inputmode="decimal" value="${v.mesoInc}">
+        <p class="hint">Added to the start each new cycle.</p>
+      </div>
+    </div>
+    <div id="preview"></div>
+
+    ${l ? `<div class="sect">Position</div>
+    <div class="pair">
+      <div class="field">
+        <label for="f-cycle">Cycle</label>
+        <input id="f-cycle" type="number" inputmode="numeric" value="${v.cycle}">
+      </div>
+      <div class="field">
+        <label for="f-week">Week</label>
+        <input id="f-week" type="number" inputmode="numeric" value="${v.week}">
+      </div>
+    </div>
+    <p class="hint" style="margin-top:-8px">
+      Set these by hand to repeat a cycle or drop back to an earlier one.
+    </p>` : ''}
+
+    <button class="btn solid wide" onclick="saveLift(${l?`'${l.id}'`:'null'})">
+      ${l?'Save changes':'Add lift'}</button>
+    ${l ? `<button class="btn danger wide" onclick="deleteLift('${l.id}')">Delete ${esc(l.name)}</button>` : ''}
+  `;
+  ['f-tm','f-start','f-scale','f-deload','f-meso'].forEach(i=>
+    document.getElementById(i).addEventListener('input', previewGrid));
+  previewGrid();
+  go('lift');
+}
+
+function readLiftForm(){
+  const n = id => parseFloat(document.getElementById(id).value) || 0;
+  return {
+    name: document.getElementById('f-name').value.trim(),
+    dayOfWeek: +document.getElementById('f-day').value,
+    tm: n('f-tm'), startPct: n('f-start'), scalePct: n('f-scale'),
+    deloadWeek: Math.max(2, Math.round(n('f-deload'))), mesoInc: n('f-meso')
+  };
+}
+
+function previewGrid(){
+  const d = readLiftForm();
+  const l = Object.assign({}, d);
+  let rows = '';
+  for(let c=1;c<=2;c++){
+    for(let w=1;w<=l.deloadWeek;w++){
+      const sets = coreSetsFor(l, c, w);
+      const dl = isDeloadWeek(l,w);
+      rows += `<tr${dl?' style="color:var(--red)"':''}>
+        <td class="num" style="color:var(--muted);padding:5px 10px 5px 0">C${c} W${w}</td>
+        ${sets.map(s=>`<td class="num" style="padding:5px 10px 5px 0">${s.weight}</td>`).join('')}
+        <td class="num" style="color:var(--dim);font-size:13px">${dl?'50%':sets[2].percent+'%'}</td>
+      </tr>`;
+    }
+  }
+  document.getElementById('preview').innerHTML = `
+    <div class="sect">What that produces</div>
+    <table style="width:100%;font-size:16px;border-collapse:collapse">
+      <tr style="color:var(--muted);font-size:13px">
+        <td style="padding-bottom:4px"></td><td>Set 1</td><td>Set 2</td><td>Set 3</td><td>Top</td>
+      </tr>${rows}
+    </table>
+    <p class="hint" style="margin-top:8px">Reps are 5 / 5 / AMRAP. Weights round down to the nearest 5 lb.</p>`;
+}
+
+function saveLift(id){
+  const d = readLiftForm();
+  if(!d.name){ toast('Give the lift a name'); return; }
+  if(d.tm <= 0){ toast('Training max must be above zero'); return; }
+  if(id){
+    const l = S.lifts.find(x=>x.id===id);
+    Object.assign(l, d);
+    l.cycle = Math.max(1, Math.round(parseFloat(document.getElementById('f-cycle').value)||1));
+    l.week  = Math.min(l.deloadWeek, Math.max(1, Math.round(parseFloat(document.getElementById('f-week').value)||1)));
+  } else {
+    S.lifts.push(Object.assign(d,{
+      id:uid(), cycle:1, week:1, bestEstimate:0, accessoryTemplate:[]
+    }));
+  }
+  saveState(); toast(id?'Saved':'Lift added'); go('home');
+}
+
+function deleteLift(id){
+  const l = S.lifts.find(x=>x.id===id);
+  openModal(`<div class="popup">
+    <div class="sub" style="margin-top:0">Delete <b>${esc(l.name)}</b>?
+    Its logged sessions stay in your history and in any backup file.</div>
+    <button class="btn solid" onclick="confirmDeleteLift('${id}')">Delete lift</button>
+    <button class="btn ghost wide" onclick="closeModal()">Keep it</button>
+  </div>`);
+}
+function confirmDeleteLift(id){
+  S.lifts = S.lifts.filter(x=>x.id!==id);
+  if(S.inProgress && S.inProgress.liftId===id) S.inProgress = null;
+  saveState(); closeModal(); toast('Lift deleted'); go('home');
+}
+
+/* ============================================================
+   SESSION
+   ============================================================ */
+let W = null;          // working session
+let openBlock = null;  // 'core' | accessory index
+let tick = null;
+
+function openSession(liftId){
+  const l = S.lifts.find(x=>x.id===liftId);
+  if(S.inProgress && S.inProgress.liftId !== liftId){
+    const other = liftName(S.inProgress.liftId);
+    openModal(`<div class="popup">
+      <div class="sub" style="margin-top:0">You have an unfinished <b>${esc(other)}</b> workout.
+      Starting ${esc(l.name)} will discard it.</div>
+      <button class="btn solid" onclick="closeModal();forceStart('${liftId}')">Discard and start ${esc(l.name)}</button>
+      <button class="btn ghost wide" onclick="closeModal();resumeSession()">Back to ${esc(other)}</button>
+    </div>`);
+    return;
+  }
+  if(S.inProgress && S.inProgress.liftId === liftId){ resumeSession(); return; }
+  forceStart(liftId);
+}
+function resumeSession(){ W = S.inProgress; enterSession(); }
+
+function forceStart(liftId){
+  const l = S.lifts.find(x=>x.id===liftId);
+  const dl = isDeloadWeek(l, l.week);
+  const tpl = (l.accessoryTemplate||[]).map(a=>{
+    let sets = a.sets.map(s=>({reps:s.reps, weight:s.weight, done:false}));
+    if(dl) sets = sets.slice(0, Math.floor(sets.length/2));
+    return {name:a.name, sets, note:''};
+  }).filter(a=>a.sets.length);
+
+  W = {
+    id: uid(), liftId, date: new Date().toISOString(),
+    cycle: l.cycle, week: l.week, tmUsed: l.tm, isDeload: dl,
+    warmupChecked:false,
+    coreSets: coreSetsFor(l, l.cycle, l.week),
+    coreNote:'', accessories: tpl,
+    started: Date.now(), status:'in-progress'
+  };
+  S.inProgress = W; saveState(); enterSession();
+}
+
+function enterSession(){
+  openBlock = null;
+  document.getElementById('sess-name').textContent = liftName(W.liftId);
+  renderSession();
+  go('session');
+  clearInterval(tick);
+  tick = setInterval(updateClock, 1000);
+  updateClock();
+}
+function updateClock(){
+  if(!W) return;
+  const s = Math.floor((Date.now()-W.started)/1000);
+  const p = n => String(n).padStart(2,'0');
+  document.getElementById('sess-clock').textContent =
+    Math.floor(s/3600)+':'+p(Math.floor(s/60)%60)+':'+p(s%60);
+}
+function leaveSession(){
+  clearInterval(tick);
+  S.inProgress = W; saveState();
+  toast('Workout saved as unfinished');
+  go('home');
+}
+
+function renderSession(){
+  const l = S.lifts.find(x=>x.id===W.liftId);
+  const body = document.getElementById('sess-body');
+  const pend = l ? resolveNewTM(l) : null;
+
+  const meta = `<div class="meta">
+    <div class="lines">
+      Cycle# <b class="num">${W.cycle}</b><br>
+      Week# <b class="num">${W.week}</b>${W.isDeload?' <b style="color:var(--red)">Deload</b>':''}
+    </div>
+    <div>
+      <div class="tm num">${W.tmUsed}</div>
+      <div class="tmlabel">Training max${pend?`<br><span style="color:var(--ok)">→ ${pend} next cycle</span>`:''}</div>
+    </div>
+  </div>`;
+
+  const warm = `<div class="block">
+    <button class="blockhead" onclick="toggleWarmup()">
+      <span class="tick ${W.warmupChecked?'on':''}">
+        <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>
+      <span class="t">Warm up</span>
+      <span class="sum">${W.warmupChecked?'Done':'Your call'}</span>
+    </button>
+  </div>`;
+
+  const core = renderBlock({
+    key:'core',
+    title: liftName(W.liftId) + ' — Main',
+    isCore:true,
+    sets: W.coreSets,
+    note: W.coreNote
+  });
+
+  const accs = W.accessories.map((a,i)=>renderBlock({
+    key:String(i), title:a.name, isCore:false, sets:a.sets, note:a.note
+  })).join('');
+
+  const foot = `
+    <button class="addacc" onclick="addAccessory()">+ Add accessory</button>
+    <div class="footer">
+      <div class="d">${fmtDate(W.date)}</div>
+      <div class="acts">
+        <button class="btn ghost" onclick="skipSession()">Skip</button>
+        <button class="btn solid" onclick="finishSession()">Save &amp; close</button>
+      </div>
+    </div>`;
+
+  body.innerHTML = meta + warm + core + accs + foot;
+}
+
+function renderBlock(o){
+  const open = openBlock === o.key;
+  const doneCount = o.sets.filter(s=>s.done).length;
+  const head = `<button class="blockhead" onclick="toggleBlock('${o.key}')">
+    <span class="chev">
+      <svg width="10" height="14" viewBox="0 0 10 14" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 2l5 5-5 5"/></svg>
+    </span>
+    ${o.isCore?'<span class="core">&#9679;</span>':''}
+    <span class="t">${esc(o.title)}</span>
+    <span class="sum num">${doneCount}/${o.sets.length}</span>
+  </button>`;
+
+  if(!open){
+    return `<div class="block">${head}${
+      o.note?`<div class="notepreview">${esc(o.note)}</div>`:''}</div>`;
+  }
+
+  const rows = o.sets.map((s,i)=>`
+    <div class="row${s.amrap?' amrap':''}">
+      <button class="tick ${s.done?'on':''}" onclick="toggleSet('${o.key}',${i})"
+        aria-label="Set ${i+1} complete">
+        <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+      </button>
+      <span class="setn num">${i+1}</span>
+      <span class="stepper">
+        <button onclick="bump('${o.key}',${i},'reps',-1)" aria-label="Fewer reps">&minus;</button>
+        <input class="num" type="number" inputmode="numeric" value="${s.reps}"
+          onchange="setVal('${o.key}',${i},'reps',this.value)">
+        <button onclick="bump('${o.key}',${i},'reps',1)" aria-label="More reps">+</button>
+      </span>
+      <span class="stepper">
+        <button onclick="bump('${o.key}',${i},'weight',-5)" aria-label="Less weight">&minus;</button>
+        <input class="num" type="number" inputmode="decimal" step="5" value="${showW(s.weight)}"
+          onchange="setVal('${o.key}',${i},'weight',this.value)">
+        <button onclick="bump('${o.key}',${i},'weight',5)" aria-label="More weight">+</button>
+      </span>
+    </div>`).join('');
+
+  const tools = `<div class="tools">
+    <button onclick="showHistory('${o.key}')" aria-label="History">
+      <svg viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+    </button>
+    <button onclick="removeSet('${o.key}')" aria-label="Remove a set">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>
+    </button>
+    <button onclick="addSet('${o.key}')" aria-label="Add a set">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+    </button>
+    <button onclick="editNote('${o.key}')" aria-label="Note">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </button>
+    ${o.isCore?'':`<button onclick="deleteAccessory(${o.key})" aria-label="Delete exercise">
+      <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+    </button>`}
+  </div>`;
+
+  const thead = `<div class="thead">
+    <span></span><span>Set#</span><span class="c">Reps</span><span class="c">lb</span></div>`;
+
+  return `<div class="block open">${head}
+    <div class="tbl">${thead}${rows}</div>${tools}
+    ${o.note?`<div class="notepreview">${esc(o.note)}</div>`:''}</div>`;
+}
+
+const setsOf = key => key==='core' ? W.coreSets : W.accessories[+key].sets;
+
+function toggleBlock(key){ openBlock = (openBlock===key) ? null : key; persist(); renderSession(); }
+function toggleWarmup(){ W.warmupChecked = !W.warmupChecked; persist(); renderSession(); }
+function toggleSet(key,i){ const s=setsOf(key)[i]; s.done=!s.done; persist(); renderSession(); }
+
+function bump(key,i,field,delta){
+  const s = setsOf(key)[i];
+  s[field] = Math.max(0, +(s[field] + delta).toFixed(1));
+  persist(); renderSession();
+}
+function setVal(key,i,field,val){
+  const s = setsOf(key)[i];
+  const n = parseFloat(val);
+  s[field] = isNaN(n) ? 0 : Math.max(0, n);
+  persist(); renderSession();
+}
+function addSet(key){
+  const arr = setsOf(key);
+  const last = arr[arr.length-1] || {reps:5,weight:0};
+  const s = {reps:last.reps, weight:last.weight, done:false};
+  if(key==='core'){ arr[arr.length-1].amrap=false; s.amrap=true; s.n=arr.length+1; }
+  arr.push(s); persist(); renderSession();
+}
+function removeSet(key){
+  const arr = setsOf(key);
+  if(arr.length<=1){ toast('A block needs at least one set'); return; }
+  arr.pop();
+  if(key==='core') arr[arr.length-1].amrap = true;
+  persist(); renderSession();
+}
+
+function editNote(key){
+  const cur = key==='core' ? W.coreNote : W.accessories[+key].note;
+  openModal(`<div class="popup" style="text-align:left">
+    <h2 style="margin-bottom:12px">Note for this session</h2>
+    <textarea class="notefield" id="noteinput" rows="4"
+      placeholder="taking it easy to see how calves feel">${esc(cur)}</textarea>
+    <button class="btn solid" onclick="saveNote('${key}')">Save note</button>
+    <button class="btn ghost wide" onclick="closeModal()">Cancel</button>
+  </div>`);
+  setTimeout(()=>document.getElementById('noteinput').focus(), 60);
+}
+function saveNote(key){
+  const v = document.getElementById('noteinput').value.trim();
+  if(key==='core') W.coreNote = v; else W.accessories[+key].note = v;
+  persist(); closeModal(); renderSession();
+}
+
+function addAccessory(){
+  openModal(`<div class="popup" style="text-align:left">
+    <h2 style="margin-bottom:12px">New accessory</h2>
+    <div class="field"><label for="a-name">Name</label>
+      <input id="a-name" placeholder="Calf raises" autocomplete="off"></div>
+    <div class="pair">
+      <div class="field"><label for="a-sets">Sets</label>
+        <input id="a-sets" type="number" inputmode="numeric" value="3"></div>
+      <div class="field"><label for="a-reps">Reps</label>
+        <input id="a-reps" type="number" inputmode="numeric" value="10"></div>
+      <div class="field"><label for="a-wt">lb</label>
+        <input id="a-wt" type="number" inputmode="decimal" step="5" value="0"></div>
+    </div>
+    <button class="btn solid" onclick="createAccessory()">Add to workout</button>
+    <button class="btn ghost wide" onclick="closeModal()">Cancel</button>
+  </div>`);
+  setTimeout(()=>document.getElementById('a-name').focus(), 60);
+}
+function createAccessory(){
+  const name = document.getElementById('a-name').value.trim();
+  if(!name){ toast('Give the exercise a name'); return; }
+  const n = Math.max(1, parseInt(document.getElementById('a-sets').value)||1);
+  const reps = Math.max(0, parseInt(document.getElementById('a-reps').value)||0);
+  const wt = Math.max(0, parseFloat(document.getElementById('a-wt').value)||0);
+  W.accessories.push({
+    name, note:'',
+    sets: Array.from({length:n}, ()=>({reps, weight:wt, done:false}))
+  });
+  openBlock = String(W.accessories.length-1);
+  persist(); closeModal(); renderSession();
+}
+function deleteAccessory(i){
+  W.accessories.splice(i,1); openBlock = null; persist(); renderSession();
+}
+function persist(){ S.inProgress = W; saveState(); }
+
+/* ---------- history ---------- */
+function showHistory(key){
+  const isCore = key==='core';
+  const name = isCore ? null : W.accessories[+key].name;
+  const entries = [];
+
+  S.sessions.slice().reverse().forEach(s=>{
+    if(s.status!=='completed' || s.liftId!==W.liftId) return;
+    if(isCore){
+      entries.push({date:s.date, sets:s.coreSets, note:s.coreNote});
+    } else {
+      const a = (s.accessories||[]).find(x=>x.name.toLowerCase()===name.toLowerCase());
+      if(a) entries.push({date:s.date, sets:a.sets, note:a.note});
+    }
+  });
+
+  const title = isCore ? liftName(W.liftId) : name;
+  const html = entries.length ? entries.map(e=>`
+    <div class="hentry">
+      <div class="hd num">${fmtDate(e.date)}</div>
+      ${e.sets.map(s=>`<div class="hl num">${s.reps} x ${showW(s.weight)}</div>`).join('')}
+      ${e.note?`<div class="hn">${esc(e.note)}</div>`:''}
+    </div>`).join('')
+    : `<p style="color:var(--muted);line-height:1.6">
+        Nothing logged yet for ${esc(title)}. It'll show up here after your first
+        saved workout.</p>`;
+
+  openModal(`<div class="sheet"><h2>History &middot; ${esc(title)}</h2>${html}</div>`);
+}
+
+/* ---------- finishing ---------- */
+function skipSession(){
+  const l = S.lifts.find(x=>x.id===W.liftId);
+  openModal(`<div class="popup">
+    <div class="sub" style="margin-top:0">Skip this workout? Nothing is logged, and
+    ${esc(l.name)} moves on to the next week.</div>
+    <button class="btn solid" onclick="confirmSkip()">Skip week</button>
+    <button class="btn ghost wide" onclick="closeModal()">Keep lifting</button>
+  </div>`);
+}
+function confirmSkip(){
+  const l = S.lifts.find(x=>x.id===W.liftId);
+  S.sessions.push(Object.assign({}, W, {status:'skipped'}));
+  advanceLift(l);
+  S.inProgress = null; W = null;
+  clearInterval(tick); saveState(); closeModal(); toast('Week skipped'); go('home');
+}
+
+function finishSession(){
+  const l = S.lifts.find(x=>x.id===W.liftId);
+
+  // Best estimate from every AMRAP set worked this session
+  let best = 0;
+  W.coreSets.forEach(s=>{ if(s.amrap && s.reps>0) best = Math.max(best, epley(s.weight, s.reps)); });
+
+  const broke = best > l.tm;
+  if(broke) l.bestEstimate = Math.max(l.bestEstimate||0, best);
+
+  // Accessories become the template for next time — except on deload,
+  // where the halved set count would permanently shrink it.
+  if(!W.isDeload){
+    l.accessoryTemplate = W.accessories.map(a=>({
+      name:a.name, sets:a.sets.map(s=>({reps:s.reps, weight:s.weight}))
+    }));
+  }
+
+  S.sessions.push(Object.assign({}, W, {status:'completed'}));
+  advanceLift(l);
+  S.inProgress = null;
+  const finished = W; W = null;
+  clearInterval(tick); saveState();
+
+  if(broke){
+    const raw = Math.round(best);
+    const capped = Math.min(best, finished.tmUsed * 1.05);
+    const applied = down5(capped);
+    const wasCapped = applied < down5(best);
+    openModal(`<div class="popup">
+      <div class="sub" style="margin:0 0 14px">You broke your training max</div>
+      <div class="big num">New Max ${raw}</div>
+      ${wasCapped?`<div class="cap num">(capped ${applied})</div>`:''}
+      <div class="sub">Takes effect at the start of your next cycle.
+        ${esc(liftName(finished.liftId))} is now ${applied} lb from Cycle ${finished.cycle+1}.</div>
+      <button class="btn solid" onclick="closeModal();go('home')">Good</button>
+    </div>`);
+    go('home');
+  } else {
+    toast('Workout saved'); go('home');
+  }
+}
+
+/* ============================================================
+   BACKUP
+   ============================================================ */
+function renderData(){
+  const n = S.sessions.length;
+  const last = S.lastExport ? fmtDate(new Date(S.lastExport).toISOString()) : 'Never';
+  document.getElementById('data-body').innerHTML = `
+    <p style="color:var(--muted);line-height:1.7;margin-top:0">
+      Everything lives in this browser on this phone. Clearing site data or
+      uninstalling wipes it. Export regularly and keep the file somewhere safe.
+    </p>
+    <div class="sect">Lifts</div>
+    ${S.lifts.map(l=>`<button class="addacc" style="text-align:left"
+      onclick="editLift('${l.id}')">${esc(l.name)}
+      <span style="color:var(--muted);font-weight:400"> &middot; TM ${l.tm} &middot; C${l.cycle} W${l.week}</span>
+      </button>`).join('') || '<p style="color:var(--muted)">No lifts yet.</p>'}
+
+    <div class="sect">Your log</div>
+    <p style="line-height:1.9;margin:0">
+      <span class="num" style="font-size:34px;font-weight:300">${n}</span>
+      session${n===1?'':'s'}<br>
+      <span class="num" style="font-size:34px;font-weight:300">${S.lifts.length}</span>
+      lift${S.lifts.length===1?'':'s'}<br>
+      <span style="color:var(--muted);font-size:15px">Last backup: ${last}</span>
+    </p>
+    <button class="btn solid wide" onclick="exportData()">Export backup file</button>
+    <button class="btn ghost wide" onclick="document.getElementById('importfile').click()">
+      Restore from a backup</button>
+    <input type="file" id="importfile" accept="application/json,.json"
+      style="display:none" onchange="importData(this)">`;
+}
+
+function exportData(){
+  const blob = new Blob([JSON.stringify(S,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'lift-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  S.lastExport = Date.now(); saveState(); renderData();
+  toast('Backup downloaded');
+}
+
+function importData(input){
+  const f = input.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    let data;
+    try{ data = JSON.parse(r.result); }
+    catch(e){ toast("That file isn't valid backup data"); return; }
+    if(!data || !Array.isArray(data.lifts) || !Array.isArray(data.sessions)){
+      toast("That file isn't a Lift backup"); return;
+    }
+    pendingImport = data;
+    openModal(`<div class="popup">
+      <div class="sub" style="margin-top:0">Restore ${data.sessions.length} session${
+        data.sessions.length===1?'':'s'} and ${data.lifts.length} lift${
+        data.lifts.length===1?'':'s'}? This replaces everything currently in the app.</div>
+      <button class="btn solid" onclick="applyImport()">Restore</button>
+      <button class="btn ghost wide" onclick="closeModal()">Cancel</button>
+    </div>`);
+  };
+  r.readAsText(f); input.value='';
+}
+let pendingImport = null;
+function applyImport(){
+  if(!pendingImport) return;
+  S = pendingImport; pendingImport = null;
+  S.seq = S.seq || 1; S.inProgress = S.inProgress || null;
+  saveState(); closeModal(); toast('Backup restored'); go('home');
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+renderHome();
+if(S.inProgress){
+  W = S.inProgress;
+  if(S.lifts.some(l=>l.id===W.liftId)) enterSession(); else { S.inProgress=null; W=null; saveState(); }
+}
+</script>
+</body>
+</html>
